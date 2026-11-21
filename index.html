@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#141414" />
+  <title>IPkm - Localizador Ferroviário</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    :root {
+      --bg-dark: #141414;
+      --bg-card: #1e1e1e;
+      --bg-panel: #252525;
+      --accent: #28a789;
+      --accent-dim: rgba(40, 167, 137, 0.18);
+      --text-main: #f2f2f2;
+      --text-muted: #9e9e9e;
+      --border: #333333;
+      --danger: #e05252;
+      --warn: #e0a836;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Header */
+    header {
+      background-color: var(--bg-card);
+      height: 56px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .header-btn {
+      background: none;
+      border: none;
+      color: var(--text-main);
+      font-size: 22px;
+      cursor: pointer;
+      padding: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .app-title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .logo-badge {
+      width: 32px;
+      height: 32px;
+      background-color: var(--accent);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #111;
+      font-weight: 900;
+      font-size: 13px;
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      max-width: 640px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .label-top {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    select, input[type="text"], input[type="number"] {
+      width: 100%;
+      background-color: var(--bg-card);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 14px;
+      font-size: 15px;
+      outline: none;
+    }
+
+    select:focus, input:focus {
+      border-color: var(--accent);
+    }
+
+    /* Schematic Card */
+    .pk-card {
+      position: relative;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 18px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    }
+
+    .schematic-bg {
+      position: absolute;
+      inset: 0;
+      opacity: 0.14;
+      pointer-events: none;
+      background-image: 
+        linear-gradient(90deg, var(--accent) 1px, transparent 1px),
+        linear-gradient(0deg, var(--accent) 1px, transparent 1px);
+      background-size: 44px 44px;
+    }
+
+    .pk-content {
+      position: relative;
+      z-index: 2;
+    }
+
+    .route-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: #dcdcdc;
+    }
+
+    .icon-teal {
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .pk-display-wrapper {
+      text-align: center;
+      margin: 26px 0 22px 0;
+    }
+
+    .pk-label {
+      font-size: 32px;
+      font-weight: 600;
+      color: #cccccc;
+      margin-right: 6px;
+    }
+
+    .pk-value {
+      font-size: 46px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: #ffffff;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .sub-info {
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .maint-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding-top: 14px;
+      font-size: 14px;
+    }
+
+    .maint-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Location Panel */
+    .loc-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .loc-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .loc-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      font-size: 15px;
+    }
+
+    .status-pill {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+      background-color: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    .status-pill.error {
+      background-color: rgba(224, 82, 82, 0.2);
+      color: var(--danger);
+    }
+
+    .status-pill.warn {
+      background-color: rgba(224, 168, 54, 0.2);
+      color: var(--warn);
+    }
+
+    .telemetry-grid {
+      display: grid;
+      grid-template-columns: 115px 1fr;
+      row-gap: 7px;
+      font-size: 14px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .t-key {
+      color: var(--text-muted);
+    }
+
+    .t-val {
+      color: var(--text-main);
+      font-weight: 500;
+    }
+
+    /* Action Buttons */
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .btn {
+      background-color: var(--bg-panel);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.15s;
+    }
+
+    .btn:active {
+      background-color: #333;
+    }
+
+    .btn-primary {
+      background-color: var(--accent);
+      color: #101010;
+      border-color: var(--accent);
+    }
+
+    .btn-full {
+      width: 100%;
+      padding: 14px;
+      font-size: 15px;
+      margin-top: auto;
+    }
+
+    /* Map & Tools Tabs */
+    .map-container {
+      height: 240px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      display: none;
+    }
+
+    .map-container.active {
+      display: block;
+    }
+
+    /* Modal / Drawer */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      width: 100%;
+      max-width: 440px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .modal-title {
+      font-size: 17px;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .help-note {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.45;
+      background: var(--bg-panel);
+      padding: 10px;
+      border-radius: 6px;
+      border-left: 3px solid var(--accent);
+    }
+  </style>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+</head>
+<body>
+
+  <header>
+    <button class="header-btn" id="btnCalibrateOpen" title="Calibrar PK no terreno">&#9776;</button>
+    <div class="app-title">IPkm</div>
+    <div class="logo-badge">PK</div>
+  </header>
+
+  <main>
+    <!-- Line Selector -->
+    <div>
+      <div class="label-top">
+        <span>Via atual</span>
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;">
+          <input type="checkbox" id="chkAutoLine" checked /> Detetar auto
+        </label>
+      </div>
+      <select id="lineSelect"></select>
+    </div>
+
+    <!-- Main PK Card -->
+    <div class="pk-card">
+      <div class="schematic-bg"></div>
+      <div class="pk-content">
+        <div class="route-row">
+          <svg class="icon-teal" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+          </svg>
+          <span id="routeEndpoints">Lisboa Santa Apolónia / Porto Campanhã</span>
+        </div>
+
+        <div class="pk-display-wrapper">
+          <span class="pk-label">Pk:</span><span class="pk-value" id="pkValue">-- + ---</span>
+          <div class="sub-info">
+            <span id="segmentInfo">Troço: --</span>
+            <span id="offsetInfo">Eixo: -- m</span>
+          </div>
+        </div>
+
+        <div class="maint-row">
+          <div class="maint-left">
+            <svg class="icon-teal" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/>
+            </svg>
+            <span style="color:var(--text-muted)">Centro de manutenção:</span>
+            <strong id="maintCenter">--</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GPS Location Card -->
+    <div class="loc-card">
+      <div class="loc-header">
+        <div class="loc-title">
+          <svg class="icon-teal" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+          </svg>
+          <span>Localização</span>
+        </div>
+        <span class="status-pill" id="gpsStatus">A iniciar GPS...</span>
+      </div>
+
+      <div class="telemetry-grid">
+        <span class="t-key">Latitude:</span>
+        <span class="t-val" id="valLat">--</span>
+
+        <span class="t-key">Longitude:</span>
+        <span class="t-val" id="valLng">--</span>
+
+        <span class="t-key">Precisão:</span>
+        <span class="t-val" id="valAcc">--</span>
+
+        <span class="t-key">Velocidade:</span>
+        <span class="t-val" id="valSpd">0 km/h</span>
+      </div>
+    </div>
+
+    <!-- Quick Tools -->
+    <div class="btn-row">
+      <button class="btn" id="btnToggleMap">Ver Mapa da Via</button>
+      <button class="btn" id="btnManualCoords">Inserir Coordenadas</button>
+    </div>
+
+    <!-- Interactive Leaflet Map -->
+    <div class="map-container" id="mapBox"></div>
+
+    <button class="btn btn-full" id="btnRefreshGps">Atualizar Sensor GPS</button>
+  </main>
+
+  <!-- Manual Coordinates Modal -->
+  <div class="modal-backdrop" id="modalManual">
+    <div class="modal-box">
+      <div class="modal-title">
+        <span>Coordenadas Manuais</span>
+        <button class="header-btn" onclick="closeModal('modalManual')">&times;</button>
+      </div>
+      <div class="help-note">
+        Cola coordenadas do Google Maps (ex: <strong>38.9023824, -9.023129</strong>) para calcular o PK exato sem depender do sensor GPS.
+      </div>
+      <input type="text" id="inputCoords" placeholder="Latitude, Longitude" />
+      <button class="btn btn-primary" id="btnApplyCoords">Calcular PK</button>
+    </div>
+  </div>
+
+  <!-- Field Calibration Modal -->
+  <div class="modal-backdrop" id="modalCalibrate">
+    <div class="modal-box">
+      <div class="modal-title">
+        <span>Calibrar Ponto no Terreno</span>
+        <button class="header-btn" onclick="closeModal('modalCalibrate')">&times;</button>
+      </div>
+      <div class="help-note">
+        Se estiveres junto a um poste kilométrico ou aparelho de via e notares um desvio de alguns metros, introduz o PK real desse ponto para gravar um ponto de referência local no teu telemóvel.
+      </div>
+      <label class="t-key" style="font-size:13px;">PK Real na localização atual (metros totais, ex: 23408 para 23+408):</label>
+      <input type="number" id="inputCalibMeters" placeholder="Ex: 23408" />
+      <button class="btn btn-primary" id="btnSaveCalib">Gravar Ponto de Referência</button>
+      <button class="btn" id="btnClearCalib" style="color:var(--danger);">Limpar Calibrações Guardadas</button>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // Base de dados georreferenciada de linhas ferroviárias (pontos de controlo reais)
+    const RAIL_LINES = [
+      {
+        id: "81",
+        name: "Linha do Norte - 81",
+        endpoints: "Lisboa Santa Apolónia / Porto Campanhã",
+        waypoints: [
+          { pk: 0,      lat: 38.71387,  lng: -9.12232,  station: "Santa Apolónia", maint: "COML" },
+          { pk: 2700,   lat: 38.73695,  lng: -9.10455,  station: "Braço de Prata", maint: "COML" },
+          { pk: 6480,   lat: 38.76785,  lng: -9.09912,  station: "Lisboa Oriente", maint: "COML" },
+          { pk: 9850,   lat: 38.79720,  lng: -9.09380,  station: "Sacavém", maint: "COML" },
+          { pk: 12150,  lat: 38.81740,  lng: -9.08860,  station: "Bobadela", maint: "COML" },
+          { pk: 14600,  lat: 38.83710,  lng: -9.07620,  station: "Santa Iria", maint: "COML" },
+          { pk: 17350,  lat: 38.85940,  lng: -9.06280,  station: "Póvoa", maint: "COMC" },
+          { pk: 21500,  lat: 38.88915,  lng: -9.03590,  station: "Alverca (Sul)", maint: "COMC" },
+          { pk: 23408,  lat: 38.9023824, lng: -9.023129, station: "Alverca", maint: "COMC" },
+          { pk: 26300,  lat: 38.92550,  lng: -9.00680,  station: "Alhandra", maint: "COMC" },
+          { pk: 30050,  lat: 38.95380,  lng: -8.98850,  station: "Vila Franca de Xira", maint: "COMC" },
+          { pk: 34200,  lat: 38.98680,  lng: -8.97210,  station: "Castanheira do Ribatejo", maint: "COMC" },
+          { pk: 37800,  lat: 39.01590,  lng: -8.95540,  station: "Carregado", maint: "COMC" },
+          { pk: 41600,  lat: 39.04420,  lng: -8.93280,  station: "Vila Nova da Rainha", maint: "COMC" },
+          { pk: 46850,  lat: 39.06910,  lng: -8.87520,  station: "Azambuja", maint: "COMC" },
+          { pk: 53900,  lat: 39.11850,  lng: -8.81420,  station: "Virtudes", maint: "COMS" },
+          { pk: 58200,  lat: 39.14920,  lng: -8.78150,  station: "Reguengo", maint: "COMS" },
+          { pk: 64100,  lat: 39.19350,  lng: -8.73810,  station: "Setil", maint: "COMS" },
+          { pk: 74200,  lat: 39.23380,  lng: -8.67540,  station: "Santarém", maint: "COMS" },
+          { pk: 86500,  lat: 39.31420,  lng: -8.59120,  station: "Vale de Figueira", maint: "COMS" },
+          { pk: 96400,  lat: 39.38950,  lng: -8.52380,  station: "Mato de Miranda", maint: "COMS" },
+          { pk: 106300, lat: 39.46280,  lng: -8.46890,  station: "Entroncamento", maint: "COME" }
+        ]
+      },
+      {
+        id: "80",
+        name: "Linha de Cintura - 80",
+        endpoints: "Doca de Alcântara / Braço de Prata",
+        waypoints: [
+          { pk: 0,     lat: 38.70290, lng: -9.17380, station: "Alcântara-Terra", maint: "COML" },
+          { pk: 3400,  lat: 38.72950, lng: -9.16720, station: "Campolide", maint: "COML" },
+          { pk: 5600,  lat: 38.74180, lng: -9.16610, station: "Sete Rios", maint: "COML" },
+          { pk: 7300,  lat: 38.74780, lng: -9.14890, station: "Entrecampos", maint: "COML" },
+          { pk: 9100,  lat: 38.74620, lng: -9.13320, station: "Roma-Areeiro", maint: "COML" },
+          { pk: 11200, lat: 38.74050, lng: -9.11520, station: "Chelas", maint: "COML" },
+          { pk: 12800, lat: 38.73695, lng: -9.10455, station: "Braço de Prata", maint: "COML" }
+        ]
+      },
+      {
+        id: "82",
+        name: "Linha de Sintra - 82",
+        endpoints: "Lisboa Rossio / Sintra",
+        waypoints: [
+          { pk: 0,     lat: 38.71450, lng: -9.14080, station: "Rossio", maint: "COML" },
+          { pk: 3400,  lat: 38.72950, lng: -9.16720, station: "Campolide", maint: "COML" },
+          { pk: 6400,  lat: 38.74850, lng: -9.19820, station: "Benfica", maint: "COML" },
+          { pk: 9600,  lat: 38.75890, lng: -9.23580, station: "Amadora", maint: "COML" },
+          { pk: 13200, lat: 38.75680, lng: -9.27640, station: "Queluz-Belas", maint: "COML" },
+          { pk: 17100, lat: 38.76320, lng: -9.31850, station: "Cacém", maint: "COML" },
+          { pk: 27400, lat: 38.80250, lng: -9.38540, station: "Sintra", maint: "COML" }
+        ]
+      }
+    ];
+
+    let currentCoords = null;
+    let watchId = null;
+    let map = null;
+    let trackPolyline = null;
+    let userMarker = null;
+    let projMarker = null;
+    let projLine = null;
+
+    // Carregar calibrações personalizadas do localStorage
+    function getCalibrations() {
+      try {
+        return JSON.parse(localStorage.getItem("ipkm_calibrations") || "{}");
+      } catch {
+        return {};
+      }
+    }
+
+    function getMergedWaypoints(line) {
+      const calibs = getCalibrations();
+      const custom = calibs[line.id] || [];
+      const merged = [...line.waypoints, ...custom];
+      merged.sort((a, b) => a.pk - b.pk);
+      return merged;
+    }
+
+    // Cálculo geodésico plano local (precisão sub-métrica para projeção ortogonal)
+    function toMeters(lat, lng, refLat) {
+      const R = 6378137;
+      const rad = Math.PI / 180;
+      const x = lng * rad * R * Math.cos(refLat * rad);
+      const y = lat * rad * R;
+      return { x, y };
+    }
+
+    function projectOntoLine(lat, lng, line) {
+      const pts = getMergedWaypoints(line);
+      let best = {
+        dist: Infinity,
+        pk: 0,
+        projLat: lat,
+        projLng: lng,
+        station: pts[0].station,
+        maint: pts[0].maint
+      };
+
+      for (let i = 0; i < pts.length - 1; i++) {
+        const A = pts[i];
+        const B = pts[i + 1];
+        const refLat = (A.lat + B.lat) / 2;
+
+        const pA = toMeters(A.lat, A.lng, refLat);
+        const pB = toMeters(B.lat, B.lng, refLat);
+        const pP = toMeters(lat, lng, refLat);
+
+        const abx = pB.x - pA.x;
+        const aby = pB.y - pA.y;
+        const apx = pP.x - pA.x;
+        const apy = pP.y - pA.y;
+
+        const abLenSq = abx * abx + aby * aby;
+        let t = abLenSq === 0 ? 0 : (apx * abx + apy * aby) / abLenSq;
+        t = Math.max(0, Math.min(1, t));
+
+        const projX = pA.x + t * abx;
+        const projY = pA.y + t * aby;
+        const dx = pP.x - projX;
+        const dy = pP.y - projY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < best.dist) {
+          const interpPk = Math.round(A.pk + t * (B.pk - A.pk));
+          const interpLat = A.lat + t * (B.lat - A.lat);
+          const interpLng = A.lng + t * (B.lng - A.lng);
+          const nearestStation = t < 0.5 ? A.station : B.station;
+          const activeMaint = t < 0.5 ? A.maint : B.maint;
+
+          best = {
+            dist: Math.round(dist),
+            pk: interpPk,
+            projLat: interpLat,
+            projLng: interpLng,
+            station: `${A.station} / ${B.station}`,
+            nearest: nearestStation,
+            maint: activeMaint
+          };
+        }
+      }
+      return best;
+    }
+
+    function formatPk(meters) {
+      const km = Math.floor(meters / 1000);
+      const m = Math.abs(meters % 1000).toString().padStart(3, "0");
+      return `${km}+${m}`;
+    }
+
+    function updateUI(lat, lng, accuracy = null, speedMps = null) {
+      currentCoords = { lat, lng };
+
+      document.getElementById("valLat").textContent = lat.toFixed(7);
+      document.getElementById("valLng").textContent = lng.toFixed(7);
+      document.getElementById("valAcc").textContent = accuracy !== null ? `${Math.round(accuracy)} m` : "Manual";
+      const kmh = speedMps !== null && !isNaN(speedMps) ? Math.round(speedMps * 3.6) : 0;
+      document.getElementById("valSpd").textContent = `${kmh} km/h`;
+
+      const select = document.getElementById("lineSelect");
+      const autoDetect = document.getElementById("chkAutoLine").checked;
+
+      let chosenLine = RAIL_LINES.find(l => l.id === select.value) || RAIL_LINES[0];
+      let bestResult = projectOntoLine(lat, lng, chosenLine);
+
+      if (autoDetect) {
+        for (const line of RAIL_LINES) {
+          const res = projectOntoLine(lat, lng, line);
+          if (res.dist < bestResult.dist) {
+            bestResult = res;
+            chosenLine = line;
+          }
+        }
+        select.value = chosenLine.id;
+      }
+
+      document.getElementById("routeEndpoints").textContent = chosenLine.endpoints;
+      document.getElementById("pkValue").textContent = formatPk(bestResult.pk);
+      document.getElementById("segmentInfo").textContent = `Troço: ${bestResult.station}`;
+      document.getElementById("offsetInfo").textContent = `Eixo: ${bestResult.dist} m`;
+      document.getElementById("maintCenter").textContent = bestResult.maint;
+
+      updateMap(lat, lng, bestResult, chosenLine);
+    }
+
+    function initLines() {
+      const select = document.getElementById("lineSelect");
+      select.innerHTML = "";
+      RAIL_LINES.forEach(line => {
+        const opt = document.createElement("option");
+        opt.value = line.id;
+        opt.textContent = line.name;
+        select.appendChild(opt);
+      });
+
+      select.addEventListener("change", () => {
+        if (currentCoords) {
+          updateUI(currentCoords.lat, currentCoords.lng);
+        }
+      });
+    }
+
+    function startRealGPS() {
+      const statusEl = document.getElementById("gpsStatus");
+
+      if (!("geolocation" in navigator)) {
+        statusEl.textContent = "GPS não suportado";
+        statusEl.className = "status-pill error";
+        return;
+      }
+
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+
+      statusEl.textContent = "A obter satélite...";
+      statusEl.className = "status-pill warn";
+
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          statusEl.textContent = "GPS Ativo";
+          statusEl.className = "status-pill";
+          updateUI(
+            pos.coords.latitude,
+            pos.coords.longitude,
+            pos.coords.accuracy,
+            pos.coords.speed
+          );
+        },
+        (err) => {
+          statusEl.className = "status-pill error";
+          if (err.code === 1) {
+            statusEl.textContent = "Permissão Negada (Abre via HTTPS)";
+          } else if (err.code === 2) {
+            statusEl.textContent = "Sinal GPS Indisponível";
+          } else {
+            statusEl.textContent = "Timeout GPS";
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 1000,
+          timeout: 15000
+        }
+      );
+    }
+
+    // Mapa Leaflet
+    function initMap() {
+      if (map) return;
+      map = L.map("mapBox").setView([38.9023824, -9.023129], 14);
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+        attribution: "&copy; OpenStreetMap"
+      }).addTo(map);
+    }
+
+    function updateMap(lat, lng, proj, line) {
+      if (!map) return;
+      const pts = getMergedWaypoints(line).map(w => [w.lat, w.lng]);
+
+      if (trackPolyline) map.removeLayer(trackPolyline);
+      if (userMarker) map.removeLayer(userMarker);
+      if (projMarker) map.removeLayer(projMarker);
+      if (projLine) map.removeLayer(projLine);
+
+      trackPolyline = L.polyline(pts, { color: "#28a789", weight: 4 }).addTo(map);
+      userMarker = L.circleMarker([lat, lng], { radius: 7, color: "#fff", fillColor: "#28a789", fillOpacity: 1 }).addTo(map);
+      projMarker = L.circleMarker([proj.projLat, proj.projLng], { radius: 5, color: "#e0a836", fillColor: "#e0a836", fillOpacity: 1 }).addTo(map);
+      projLine = L.polyline([[lat, lng], [proj.projLat, proj.projLng]], { color: "#e0a836", weight: 2, dashArray: "4,4" }).addTo(map);
+
+      map.setView([lat, lng], map.getZoom());
+    }
+
+    // Modais e Eventos
+    function openModal(id) {
+      document.getElementById(id).classList.add("open");
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove("open");
+    }
+
+    document.getElementById("btnManualCoords").addEventListener("click", () => openModal("modalManual"));
+    document.getElementById("btnCalibrateOpen").addEventListener("click", () => openModal("modalCalibrate"));
+
+    document.getElementById("btnApplyCoords").addEventListener("click", () => {
+      const raw = document.getElementById("inputCoords").value.trim();
+      const parts = raw.split(/[\s,;]+/).map(Number);
+      if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        document.getElementById("gpsStatus").textContent = "Modo Manual";
+        document.getElementById("gpsStatus").className = "status-pill warn";
+        updateUI(parts[0], parts[1]);
+        closeModal("modalManual");
+      } else {
+        alert("Formato inválido. Usa: 38.9023824, -9.023129");
+      }
+    });
+
+    document.getElementById("btnSaveCalib").addEventListener("click", () => {
+      if (!currentCoords) {
+        alert("Ainda não há coordenadas ativas para calibrar.");
+        return;
+      }
+      const pkMeters = parseInt(document.getElementById("inputCalibMeters").value, 10);
+      if (isNaN(pkMeters) || pkMeters < 0) {
+        alert("Insere um valor numérico em metros (ex: 23408).");
+        return;
+      }
+      const lineId = document.getElementById("lineSelect").value;
+      const line = RAIL_LINES.find(l => l.id === lineId);
+      const prevRes = projectOntoLine(currentCoords.lat, currentCoords.lng, line);
+
+      const calibs = getCalibrations();
+      if (!calibs[lineId]) calibs[lineId] = [];
+      calibs[lineId].push({
+        pk: pkMeters,
+        lat: currentCoords.lat,
+        lng: currentCoords.lng,
+        station: `Ref. Calibrada (${formatPk(pkMeters)})`,
+        maint: prevRes.maint
+      });
+      localStorage.setItem("ipkm_calibrations", JSON.stringify(calibs));
+      updateUI(currentCoords.lat, currentCoords.lng);
+      closeModal("modalCalibrate");
+    });
+
+    document.getElementById("btnClearCalib").addEventListener("click", () => {
+      localStorage.removeItem("ipkm_calibrations");
+      if (currentCoords) updateUI(currentCoords.lat, currentCoords.lng);
+      closeModal("modalCalibrate");
+    });
+
+    document.getElementById("btnToggleMap").addEventListener("click", () => {
+      const box = document.getElementById("mapBox");
+      box.classList.toggle("active");
+      if (box.classList.contains("active")) {
+        initMap();
+        setTimeout(() => map.invalidateSize(), 100);
+        if (currentCoords) {
+          const line = RAIL_LINES.find(l => l.id === document.getElementById("lineSelect").value);
+          updateMap(currentCoords.lat, currentCoords.lng, projectOntoLine(currentCoords.lat, currentCoords.lng, line), line);
+        }
+      }
+    });
+
+    document.getElementById("btnRefreshGps").addEventListener("click", startRealGPS);
+
+    // Arranque
+    initLines();
+    startRealGPS();
+    // Registo de Service Worker para funcionamento Offline como App Nativa
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
